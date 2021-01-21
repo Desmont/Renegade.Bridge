@@ -7,9 +7,9 @@ namespace Renegade.Bridge.Interface
     {
         string Name { get; }
         
-        Task<ulong> Send(IPendingMessage message);
-        Task<ulong> Update(IPendingMessage message);
-        Task<bool> Delete(ulong messageId);
+        Task<ulong?> SendAsync(IPendingMessage message);
+        Task UpdateAsync(IPendingMessage message);
+        Task DeleteAsync(IPendingMessage message);
 
         event Action<IRecievedMessage> Received;
         event Action<IRecievedMessage> Updated;

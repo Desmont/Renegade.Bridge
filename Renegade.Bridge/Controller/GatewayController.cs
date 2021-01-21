@@ -28,11 +28,14 @@ namespace Renegade.Bridge.Controller
 
         private void ClientOnReceived(ClientController sender, IRecievedMessage message)
         {
-            var entry = new GatewayEntry {Message = message, AccountName = sender.Account.Name};
-            foreach (var clientController in Clients.Where(x => x != sender))
+            var entry = new GatewayEntry { ClientName = sender.Name, Message = message};
+            foreach (var client in Clients.Where(client => client != sender))
             {
-                entry.MessageIds.Add(new KeyValuePair<string, ulong>(clientController.Account.Name,
-                    clientController.Send(message)));
+                var messageId = client.Send(message);
+                if (messageId == null) throw new Exception("Message not sent"); // TODO MKA logging
+                
+                entry.MessageIds.Add(new KeyValuePair<string, ulong>(client.Name,
+                    messageId.Value));
             }
 
             _entries.Add(entry);
@@ -40,34 +43,40 @@ namespace Renegade.Bridge.Controller
 
         private void ClientOnUpdated(ClientController sender, IRecievedMessage message)
         {
-            var entry = _entries.FirstOrDefault(x => x.Message.MessageId == message.MessageId);
+            var entry = GetMessage(sender.Name, message.MessageId);
             if (entry == null)
             {
                 return;
             }
 
-            foreach (var (accountName, messageId) in entry.MessageIds)
+            entry.Message = message;
+            
+            foreach (var (clientName, messageId) in entry.MessageIds)
             {
-                var clientController = Clients.First(x => x.Account.Name == accountName);
+                var client = Clients.First(x => x.Name == clientName);
 
-                clientController.Update(message, messageId);
+                client.Update(message, messageId);
             }
         }
 
         private void ClientOnDeleted(ClientController sender, ulong deletedMessageId)
         {
-            var entry = _entries.FirstOrDefault(x => x.Message.MessageId == deletedMessageId);
+            var entry = GetMessage(sender.Name, deletedMessageId);
             if (entry == null)
             {
                 return;
             }
             
-            foreach (var (accountName, messageId) in entry.MessageIds)
-            {
-                var clientController = Clients.First(x => x.Account.Name == accountName);
+            foreach (var (clientName, messageId) in entry.MessageIds)            {
+                var client = Clients.First(x => x.Name == clientName);
 
-                clientController.Delete(messageId);
+                client.Delete(entry.Message, messageId);
             }
+        }
+        
+        private GatewayEntry GetMessage(string clientName, ulong messageId)
+        {
+            return _entries.FirstOrDefault(x => x.ClientName == clientName && x.Message.MessageId == messageId);
         }
     }
 }

@@ -5,7 +5,7 @@ namespace Renegade.Bridge.Model
 {
     public class GatewayEntry
     {
-        public string AccountName { get; set; }
+        public string ClientName { get; init; }
         public IRecievedMessage Message { get; set; }
 
         public ICollection<KeyValuePair<string, ulong>> MessageIds { get; } =

@@ -48,65 +48,48 @@ namespace Renegade.Bridge.Controller.Account
 
         public string Name => _options.Name;
 
-        public async Task<ulong> Send(IPendingMessage message)
+        public async Task<ulong?> SendAsync(IPendingMessage message)
         {
-            if (!string.IsNullOrWhiteSpace(message.WebHookUrl))
-            {
-                var webHook = GetWebHook(message.WebHookUrl);
+            if (string.IsNullOrWhiteSpace(message.WebHookUrl)) throw new NotSupportedException();
 
-                var messageId = await webHook.SendMessageAsync(message.Content, username: message.BridgeAuthor.Username,
-                    avatarUrl: message.BridgeAuthor.Avatar);
-                return messageId;
-            }
+            var webHook = GetWebHook(message.WebHookUrl);
 
-            var guild = _client.GetGuild(ulong.Parse(_options.Server));
-            var channel = guild.Channels.First(x => x.Name == message.Channel);
+            var messageId = await webHook.SendMessageAsync(message.Content, username: message.BridgeAuthor.Username,
+                avatarUrl: message.BridgeAuthor.Avatar);
 
-            if (!(channel is IMessageChannel msgChannel))
-            {
-                return default;
-            }
-
-            var result = await msgChannel.SendMessageAsync(message.Content);
-
-            return result.Id;
+            return messageId;
         }
 
-        public async Task<ulong> Update(IPendingMessage message)
+        public async Task UpdateAsync(IPendingMessage message)
         {
-            if (!string.IsNullOrWhiteSpace(message.WebHookUrl))
-            {
-                var webHook = GetWebHook(message.WebHookUrl);
+            if (message.MessageId == null) throw new ArgumentNullException(nameof(message.MessageId));
+            if (string.IsNullOrWhiteSpace(message.WebHookUrl)) throw new NotSupportedException();
 
-                var messageId = webHook.SendMessageAsync("Update" + message.Content,
-                    username: message.BridgeAuthor.Username,
-                    avatarUrl: message.BridgeAuthor.Avatar).Result;
-                return messageId;
-            }
+            var webHook = GetWebHook(message.WebHookUrl);
 
-            var guild = _client.GetGuild(ulong.Parse(_options.Server));
-            var channel = guild.Channels.First(x => x.Name == message.Channel);
-
-            if (!(channel is IMessageChannel msgChannel))
-            {
-                return default;
-            }
-
-            var result = await msgChannel.SendMessageAsync("Update" + message.Content);
-
-            return result.Id;
+            await webHook.EditMessageAsync(message.MessageId.Value, message.Content);
         }
 
-        public Task<bool> Delete(ulong messageId1)
+        public async Task DeleteAsync(IPendingMessage message)
         {
-            throw new NotImplementedException();
+            if (message.MessageId == null) throw new ArgumentNullException(nameof(message.MessageId));
+            if (string.IsNullOrWhiteSpace(message.WebHookUrl)) throw new NotSupportedException();
+
+            var webHook = GetWebHook(message.WebHookUrl);
+
+            await webHook.DeleteMessageAsync(message.MessageId.Value);
+            
             // var guild = _client.GetGuild(ulong.Parse(_options.Server));
             // var channel = guild.Channels.First(x => x.Name == message.Channel);
             //
-            // var msgChannel = channel as IMessageChannel;
-            // var result = await msgChannel?.SendMessageAsync(message.Content);
+            // if (!(channel is IMessageChannel msgChannel))
+            // {
+            //     return false;
+            // }
             //
-            // return result.Id;
+            // await msgChannel.DeleteMessageAsync(message.MessageId.Value);
+            //
+            // return true;
         }
 
         private Task MessageReceived(SocketMessage message)
@@ -160,6 +143,8 @@ namespace Renegade.Bridge.Controller.Account
                 return _webhooks[webHookUrl];
             }
 
+            DiscordWebhookClient webHook;
+
             #region Discord.Net.Webhook 2.2.0 workaround
 
             // Discord.Net.Webhook 2.2.0 cant parse current discord webhook urls - do it manually
@@ -185,11 +170,11 @@ namespace Renegade.Bridge.Controller.Account
             }
 
             var webhookToken = match.Groups[3].Value;
-            var webHook = new DiscordWebhookClient(webhookId, webhookToken);
+            webHook = new DiscordWebhookClient(webhookId, webhookToken);
 
             #endregion
 
-            // var webHook = new DiscordWebhookClient(message.WebHookUrl);
+            // webHook = new DiscordWebhookClient(webHookUrl);
             webHook.Log += Log;
 
             _webhooks.Add(webHookUrl, webHook);

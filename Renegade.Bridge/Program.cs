@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -59,7 +58,6 @@ namespace Renegade.Bridge
                 .AddSingleton<BridgeConfiguration>()
                 .AddSingleton<GatewayFactory>()
                 .AddSingleton<AccountFactory>()
-                .AddScoped<DiscordSocketClient>()
                 // Logging
                 .AddLogging(builder =>
                 {

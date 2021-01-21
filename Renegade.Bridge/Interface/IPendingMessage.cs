@@ -2,6 +2,8 @@
 {
     public interface IPendingMessage
     {
+        ulong? MessageId { get; }
+        
         string WebHookUrl { get; }
         string Channel { get; }
 

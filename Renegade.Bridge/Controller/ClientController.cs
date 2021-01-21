@@ -11,8 +11,10 @@ namespace Renegade.Bridge.Controller
 
         public ClientController(IAccountController account, ClientOptions options)
         {
-            _options = options;
+            Name = $"{account.Name}:{options.Channel}";
 
+            _options = options;
+            
             Account = account;
             Account.Received += OnReceived;
             Account.Updated += OnUpdated;
@@ -20,6 +22,7 @@ namespace Renegade.Bridge.Controller
         }
 
         public IAccountController Account { get; }
+        public string Name { get; }
 
         public event Action<ClientController, IRecievedMessage> Received;
         public event Action<ClientController, IRecievedMessage> Updated;
@@ -50,19 +53,19 @@ namespace Renegade.Bridge.Controller
             Deleted?.Invoke(this, id);
         }
 
-        public ulong Send(IRecievedMessage message)
+        public ulong? Send(IRecievedMessage message)
         {
-            return Account.Send(ConvertMessage(message)).Result;
+            return Account.SendAsync(ConvertMessage(message)).Result;
         }
 
-        public ulong Update(IRecievedMessage message, ulong messageId)
+        public void Update(IRecievedMessage message, ulong messageId)
         {
-            return Account.Update(ConvertMessage(message, messageId)).Result;
+            Account.UpdateAsync(ConvertMessage(message, messageId)).Wait();
         }
         
-        public void Delete(ulong messageId)
+        public void Delete(IRecievedMessage message, ulong messageId)
         {
-            Account.Delete(messageId).Wait();
+            Account.DeleteAsync(ConvertMessage(message, messageId)).Wait();
         }
 
         private IPendingMessage ConvertMessage(IRecievedMessage message, ulong? messageId = null)
@@ -76,6 +79,5 @@ namespace Renegade.Bridge.Controller
                 WebHookUrl = _options.WebHookUrl
             };
         }
-
     }
 }
