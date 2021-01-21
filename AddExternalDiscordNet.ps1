@@ -1,0 +1,1 @@
+dotnet sln add -s Discord.Net (ls -r "../Discord.Net/src/**/*.csproj")

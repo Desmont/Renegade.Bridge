@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Webhook;
@@ -16,30 +14,26 @@ namespace Renegade.Bridge.Controller.Account
 {
     public class DiscordController : IAccountController
     {
-        private static readonly Regex s_webhookUrlRegex =
-            new(@"^.*(discord|discordapp)\.com\/api\/webhooks\/([\d]+)\/([a-z0-9_-]+)$",
-                RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-        private readonly DiscordSocketClient _client;
         private readonly ILogger _discordLogger;
         private readonly AccountOptions _options;
-        private readonly IDictionary<string, DiscordWebhookClient> _webhooks;
-
+        private readonly DiscordSocketClient _socketClient;
+        private readonly IDictionary<string, DiscordWebhookClient> _webhookClients;
 
         public DiscordController(AccountOptions options, ILoggerFactory loggerFactory)
         {
             _options = options;
-            _webhooks = new Dictionary<string, DiscordWebhookClient>();
+
+            _webhookClients = new Dictionary<string, DiscordWebhookClient>();
 
             _discordLogger = loggerFactory.CreateLogger($"account.{Name}");
 
-            _client = new DiscordSocketClient();
-            _client.Log += Log;
-            _client.MessageReceived += MessageReceived;
-            _client.MessageUpdated += MessageUpdated;
-            _client.MessageDeleted += MessageDeleted;
-            _client.LoginAsync(TokenType.Bot, _options.Token).Wait();
-            _client.StartAsync().Wait();
+            _socketClient = new DiscordSocketClient();
+            _socketClient.Log += Log;
+            _socketClient.MessageReceived += MessageReceived;
+            _socketClient.MessageUpdated += MessageUpdated;
+            _socketClient.MessageDeleted += MessageDeleted;
+            _socketClient.LoginAsync(TokenType.Bot, _options.Token).Wait();
+            _socketClient.StartAsync().Wait();
         }
 
         public event Action<IRecievedMessage> Received;
@@ -50,9 +44,7 @@ namespace Renegade.Bridge.Controller.Account
 
         public async Task<ulong?> SendAsync(IPendingMessage message)
         {
-            if (string.IsNullOrWhiteSpace(message.WebHookUrl)) throw new NotSupportedException();
-
-            var webHook = GetWebHook(message.WebHookUrl);
+            var webHook = await GetWebHookClientAsync(message.Channel);
 
             var messageId = await webHook.SendMessageAsync(message.Content, username: message.BridgeAuthor.Username,
                 avatarUrl: message.BridgeAuthor.Avatar);
@@ -62,34 +54,26 @@ namespace Renegade.Bridge.Controller.Account
 
         public async Task UpdateAsync(IPendingMessage message)
         {
-            if (message.MessageId == null) throw new ArgumentNullException(nameof(message.MessageId));
-            if (string.IsNullOrWhiteSpace(message.WebHookUrl)) throw new NotSupportedException();
+            if (message.MessageId == null)
+            {
+                throw new ArgumentNullException(nameof(message.MessageId));
+            }
 
-            var webHook = GetWebHook(message.WebHookUrl);
+            var webHook = await GetWebHookClientAsync(message.Channel);
 
             await webHook.EditMessageAsync(message.MessageId.Value, message.Content);
         }
 
         public async Task DeleteAsync(IPendingMessage message)
         {
-            if (message.MessageId == null) throw new ArgumentNullException(nameof(message.MessageId));
-            if (string.IsNullOrWhiteSpace(message.WebHookUrl)) throw new NotSupportedException();
+            if (message.MessageId == null)
+            {
+                throw new ArgumentNullException(nameof(message.MessageId));
+            }
 
-            var webHook = GetWebHook(message.WebHookUrl);
+            var webHook = await GetWebHookClientAsync(message.Channel);
 
             await webHook.DeleteMessageAsync(message.MessageId.Value);
-            
-            // var guild = _client.GetGuild(ulong.Parse(_options.Server));
-            // var channel = guild.Channels.First(x => x.Name == message.Channel);
-            //
-            // if (!(channel is IMessageChannel msgChannel))
-            // {
-            //     return false;
-            // }
-            //
-            // await msgChannel.DeleteMessageAsync(message.MessageId.Value);
-            //
-            // return true;
         }
 
         private Task MessageReceived(SocketMessage message)
@@ -133,53 +117,29 @@ namespace Renegade.Bridge.Controller.Account
 
         private bool ShouldIgnoreAuthor(IUser author)
         {
-            return author.Id == _client.CurrentUser.Id || author.IsWebhook;
+            return author.Id == _socketClient.CurrentUser.Id || author.IsWebhook;
         }
 
-        private DiscordWebhookClient GetWebHook(string webHookUrl)
+        private async Task<DiscordWebhookClient> GetWebHookClientAsync(string channelName)
         {
-            if (_webhooks.ContainsKey(webHookUrl))
+            if (_webhookClients.ContainsKey(channelName))
             {
-                return _webhooks[webHookUrl];
+                return _webhookClients[channelName];
             }
 
-            DiscordWebhookClient webHook;
-
-            #region Discord.Net.Webhook 2.2.0 workaround
-
-            // Discord.Net.Webhook 2.2.0 cant parse current discord webhook urls - do it manually
-            var match = s_webhookUrlRegex.Match(webHookUrl);
-            if (!match.Success)
+            var guild = _socketClient.GetGuild(ulong.Parse(_options.Server));
+            if (!(guild.Channels.First(x => x.Name == channelName) is ITextChannel channel))
             {
-                throw new ArgumentNullException(nameof(webHookUrl), "The webhook token could not be parsed.");
+                throw new NotSupportedException("Webhook requires ITextChannel");
             }
 
-            // ensure that the first group is a ulong, set the _webhookId
-            // 0th group is always the entire match, and 1 is the domain; so start at index 2
-            if (!(match.Groups[2].Success && ulong.TryParse(match.Groups[2].Value, NumberStyles.None,
-                CultureInfo.InvariantCulture, out var webhookId)))
-            {
-                throw new ArgumentNullException(nameof(webHookUrl),
-                    "The webhook MessageId could not be parsed.");
-            }
+            var hook = (await channel.GetWebhooksAsync()).FirstOrDefault() ??
+                       await channel.CreateWebhookAsync($"Renegade.Bridge:{channelName}");
 
-            if (!match.Groups[3].Success)
-            {
-                throw new ArgumentNullException(nameof(webHookUrl),
-                    "The webhook token could not be parsed.");
-            }
+            var webhookClient = new DiscordWebhookClient(hook);
+            _webhookClients.Add(channelName, webhookClient);
 
-            var webhookToken = match.Groups[3].Value;
-            webHook = new DiscordWebhookClient(webhookId, webhookToken);
-
-            #endregion
-
-            // webHook = new DiscordWebhookClient(webHookUrl);
-            webHook.Log += Log;
-
-            _webhooks.Add(webHookUrl, webHook);
-
-            return webHook;
+            return webhookClient;
         }
 
         private IRecievedMessage ConvertMessage(IMessage message)

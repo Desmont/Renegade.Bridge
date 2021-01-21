@@ -6,7 +6,7 @@ namespace Renegade.Bridge.Interface
     public interface IAccountController
     {
         string Name { get; }
-        
+
         Task<ulong?> SendAsync(IPendingMessage message);
         Task UpdateAsync(IPendingMessage message);
         Task DeleteAsync(IPendingMessage message);

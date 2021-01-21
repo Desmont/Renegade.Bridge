@@ -9,7 +9,5 @@ namespace Renegade.Bridge.Model
         public IBridgeAuthor BridgeAuthor { get; init; }
 
         public string Channel { get; init; }
-
-        public string WebHookUrl { get; init; }
     }
 }

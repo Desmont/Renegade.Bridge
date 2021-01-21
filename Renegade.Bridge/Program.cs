@@ -35,7 +35,7 @@ namespace Renegade.Bridge
             catch (Exception e)
             {
                 Debugger.Break();
-                logger.Log(LogLevel.Critical, e, e.Message);
+                logger.Log(LogLevel.Critical, e, "Uncaught exception");
                 throw;
             }
 
@@ -46,7 +46,7 @@ namespace Renegade.Bridge
         {
             return new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("config.json")
+                .AddJsonFile("appsettings.json")
                 .Build();
         }
 

@@ -14,7 +14,7 @@ namespace Renegade.Bridge.Controller
             Name = $"{account.Name}:{options.Channel}";
 
             _options = options;
-            
+
             Account = account;
             Account.Received += OnReceived;
             Account.Updated += OnUpdated;
@@ -62,7 +62,7 @@ namespace Renegade.Bridge.Controller
         {
             Account.UpdateAsync(ConvertMessage(message, messageId)).Wait();
         }
-        
+
         public void Delete(IRecievedMessage message, ulong messageId)
         {
             Account.DeleteAsync(ConvertMessage(message, messageId)).Wait();
@@ -75,8 +75,7 @@ namespace Renegade.Bridge.Controller
                 MessageId = messageId,
                 Content = message.Content,
                 BridgeAuthor = message.BridgeAuthor,
-                Channel = _options.Channel,
-                WebHookUrl = _options.WebHookUrl
+                Channel = _options.Channel
             };
         }
     }

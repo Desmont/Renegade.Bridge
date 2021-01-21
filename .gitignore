@@ -354,3 +354,6 @@ MigrationBackup/
 Artefacts/
 
 /.idea
+
+# project specific
+/Renegade.Bridge/appsettings.json

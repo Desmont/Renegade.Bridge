@@ -28,12 +28,15 @@ namespace Renegade.Bridge.Controller
 
         private void ClientOnReceived(ClientController sender, IRecievedMessage message)
         {
-            var entry = new GatewayEntry { ClientName = sender.Name, Message = message};
+            var entry = new GatewayEntry {ClientName = sender.Name, Message = message};
             foreach (var client in Clients.Where(client => client != sender))
             {
                 var messageId = client.Send(message);
-                if (messageId == null) throw new Exception("Message not sent"); // TODO MKA logging
-                
+                if (messageId == null)
+                {
+                    throw new Exception("Message not sent"); // TODO MKA logging
+                }
+
                 entry.MessageIds.Add(new KeyValuePair<string, ulong>(client.Name,
                     messageId.Value));
             }
@@ -50,7 +53,7 @@ namespace Renegade.Bridge.Controller
             }
 
             entry.Message = message;
-            
+
             foreach (var (clientName, messageId) in entry.MessageIds)
             {
                 var client = Clients.First(x => x.Name == clientName);
@@ -66,14 +69,15 @@ namespace Renegade.Bridge.Controller
             {
                 return;
             }
-            
-            foreach (var (clientName, messageId) in entry.MessageIds)            {
+
+            foreach (var (clientName, messageId) in entry.MessageIds)
+            {
                 var client = Clients.First(x => x.Name == clientName);
 
                 client.Delete(entry.Message, messageId);
             }
         }
-        
+
         private GatewayEntry GetMessage(string clientName, ulong messageId)
         {
             return _entries.FirstOrDefault(x => x.ClientName == clientName && x.Message.MessageId == messageId);

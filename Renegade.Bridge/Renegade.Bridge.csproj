@@ -8,7 +8,6 @@
     </PropertyGroup>
   
     <ItemGroup>
-      <PackageReference Include="Discord.Net" Version="2.2.0" />
       <PackageReference Include="Microsoft.Extensions.Configuration" Version="5.0.0" />
       <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.1" />
@@ -17,7 +16,13 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="config.json">
+      <ProjectReference Include="..\..\Discord.Net\src\Discord.Net.Core\Discord.Net.Core.csproj" />
+      <ProjectReference Include="..\..\Discord.Net\src\Discord.Net.Webhook\Discord.Net.Webhook.csproj" />
+      <ProjectReference Include="..\..\Discord.Net\src\Discord.Net.WebSocket\Discord.Net.WebSocket.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="appsettings.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
