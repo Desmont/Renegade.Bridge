@@ -78,7 +78,7 @@ namespace Renegade.Bridge.Controller.Account
 
         private Task MessageReceived(SocketMessage message)
         {
-            if (ShouldIgnoreAuthor(message.Author))
+            if (!CorrectMessage(message))
             {
                 return Task.CompletedTask;
             }
@@ -93,7 +93,7 @@ namespace Renegade.Bridge.Controller.Account
         private Task MessageUpdated(Cacheable<IMessage, ulong> oldMessage, SocketMessage message,
             ISocketMessageChannel channel)
         {
-            if (ShouldIgnoreAuthor(message.Author))
+            if (!CorrectMessage(message))
             {
                 return Task.CompletedTask;
             }
@@ -105,7 +105,7 @@ namespace Renegade.Bridge.Controller.Account
 
         private Task MessageDeleted(Cacheable<IMessage, ulong> oldMessage, ISocketMessageChannel channel)
         {
-            if (oldMessage.HasValue && ShouldIgnoreAuthor(oldMessage.Value.Author))
+            if (oldMessage.HasValue && !CorrectMessage(oldMessage.Value))
             {
                 return Task.CompletedTask;
             }
@@ -115,9 +115,10 @@ namespace Renegade.Bridge.Controller.Account
             return Task.CompletedTask;
         }
 
-        private bool ShouldIgnoreAuthor(IUser author)
+        private bool CorrectMessage(IMessage message)
         {
-            return author.Id == _socketClient.CurrentUser.Id || author.IsWebhook;
+            return (message.Channel as SocketGuildChannel)?.Guild.Id == ulong.Parse(_options.Server) // guild
+                   && message.Author.Id != _socketClient.CurrentUser.Id && !message.Author.IsWebhook; // author
         }
 
         private async Task<DiscordWebhookClient> GetWebHookClientAsync(string channelName)
