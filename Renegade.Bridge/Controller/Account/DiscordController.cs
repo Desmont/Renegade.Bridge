@@ -61,7 +61,7 @@ namespace Renegade.Bridge.Controller.Account
 
             var webHook = await GetWebHookClientAsync(message.Channel);
 
-            await webHook.EditMessageAsync(message.MessageId.Value, message.Content);
+            await webHook.ModifyMessageAsync(message.MessageId.Value, props => props.Content = message.Content);
         }
 
         public async Task DeleteAsync(IPendingMessage message)
